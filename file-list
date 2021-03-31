@@ -1,0 +1,147 @@
+def read_length(filename):
+	lengths = [] ; all_lines =[]
+	for line in open(filename):
+		lines = line.split("\t")
+		lengths.append(float(lines[2])-float(lines[1]))
+		all_lines.append(line)
+	return lengths,all_lines
+  
+  一个文件 有很多行
+  append之后 变成列表
+  行数 = 列表元素个数
+  
+  
+  数字列表
+  [1065.0, 399.0, 1752.0, 354.0, 240.0, 237.0, 418.0, 300.0, 220.0, 315.0]
+  
+  字符列表
+  ['chr1\t151960\t152200\tH3K36me3_peak_5\t48\t.\t2.94615\t6.44088\t4.82288\t82\n',
+  'chr1\t155984\t156221\tH3K36me3_peak_6\t33\t.\t2.62644\t4.84271\t3.35439\t222\n',
+  'chr1\t163218\t163636\tH3K36me3_peak_7\t23\t.\t2.08453\t3.70578\t2.31747\t45\n',
+  'chr1\t325590\t325890\tH3K36me3_peak_8\t56\t.\t2.99971\t7.36587\t5.67519\t199\n', 
+  'chr1\t661803\t662023\tH3K36me3_peak_9\t49\t.\t2.77365\t6.59646\t4.95586\t127\n', 
+  'chr1\t662248\t662563\tH3K36me3_peak_10\t20\t.\t2.00116\t3.42663\t2.05671\t73\n']
+  在这个字符列表中，每一个元素是一个字符，很长的字符，代表文件中的每一行
+  
+  
+filename = 'test2_peaks.narrowPeak'
+data,alllines = read_length(filename)
+一个文件对应一个返回值
+很多文件 可以 进一步 append
+生成一个二维2D的 矩阵
+代表samples,维度
+
+比如 一共有5个file 那么得到的矩阵就是5个列表
+
+
+
+for filename in filenames:
+	if filename.endswith("narrowPeak"):
+		names.append(filename.split("_")[0])
+		data,alllines = read_length(filename)
+		datas.append(data)
+		raw_files.append(alllines)
+    
+在for循环中 调用一次函数 代表 对一个文件操作 转换成了一个列表
+于是 进一步 append 生成了 多个列表的矩阵
+
+
+fig,axes=plt.subplots(4,1)
+
+sns.boxplot(x=datas[0],ax=axes[0],**{"showfliers":False})
+axes[0].set_ylabel(names[0], fontsize=11.5)
+
+这里 x=datas[0] 代表一个列表，一般画图就采用一个列表就行，
+先设置好画布，指定哪个文件的数据 画在哪个画布上面
+**{"showfliers":False}  是否显示 离群值 不很懂
+
+sns.boxplot(x=datas[1],ax=axes[1],**{"showfliers":False})
+axes[1].set_ylabel(names[1], fontsize=11.5)
+
+sns.boxplot(x=datas[2],ax=axes[2],**{"showfliers":False})
+axes[2].set_ylabel(names[2], fontsize=11.5)
+
+sns.boxplot(x=datas[3],ax=axes[3],**{"showfliers":False})
+axes[3].set_ylabel(names[3], fontsize=11.5)
+
+然后有多少组数据就可以在 多少个画布上面 画画
+
+
+min_values = []
+min_values.append(min([y for stat in boxplot_stats(datas[0]) for y in stat['fliers']]))
+
+min_values.append(min([y for stat in boxplot_stats(datas[1]) for y in stat['fliers']]))
+
+min_values.append(min([y for stat in boxplot_stats(datas[2]) for y in stat['fliers']]))
+min_values.append(min([y for stat in boxplot_stats(datas[3]) for y in stat['fliers']]))
+追加 可以直接采用append 事先需要 初始化
+[y for stat in boxplot_stats(datas[2]) for y in stat['fliers']]
+这个是找出 离群值的 方法
+
+[y for stat in boxplot_stats(datas[2]) for y in stat['fliers']]
+如下所示
+import matplotlib.pyplot as plt
+from matplotlib.cbook import boxplot_stats
+import pandas as pd
+import seaborn as sns
+
+data = [
+    ('LA', 1),
+    ('Sultan', 128),
+    ('ElderCare', 1),
+    ('CA', 3),
+    ('More', 900),
+]
+df = pd.DataFrame(data, columns=('client', 'total'))
+ax = sns.boxplot(data=df)
+outliers = [y for stat in boxplot_stats(df['total']) for y in stat['fliers']]
+print(outliers)
+for y in outliers:
+    ax.plot(1, y, 'p')
+ax.set_xlim(right=1.5)
+plt.show()
+
+
+
+这样 对于一个文件 有了 （离群值中的）最小值，每个文件每行的PTM长度，每行弄在一起 写成列表，每个文件有一个名字
+
+def filter_data(min_values,datas,raw_files,names):
+	for count in range(len(min_values)):
+		with open(names[count]+".filter.bed",'w') as f:
+			for i in range(len(datas[count])):
+				if datas[count][i] < min_values[count]:
+					f.write(raw_files[count][i])
+于是 有了很多输入信息 可以 写一个简单的函数 筛选
+怎么筛选 一个一个文件来
+先创建一个空的
+以字符的形式 with open(names[count]+".filter.bed",'w') as f:
+这里有些吓人的是 文件名的选取 纸老虎  其实很简单 变量 + 固定字符
+
+一定要先有逻辑
+从很多行中 提取某些行
+所以 f.write(raw_files[count][i])
+raw_files[count] 代表某一个文件的很多行 [i] 第几行
+筛选标准是什么呢？
+是一个条件：PTM长度 小于 离群值最小的长度
+if datas[count][i] < min_values[count]:
+
+所以你需要一行一行的遍历 
+for i in range(len(datas[count])):
+遍历的时候一般 range len 某个列表，这里datas[count] 就代表一个文件的 所有行=PTM的长度
+
+然后for count in range(len(min_values)):遍历全部文件
+最后封装成为函数
+def filter_data(min_values,datas,raw_files,names):
+
+就可以直接调用了
+hhhhhh:)
+
+
+
+
+
+
+
+filter_data(min_values,datas,raw_files,names)
+
+
